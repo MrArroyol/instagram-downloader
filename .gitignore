@@ -1,0 +1,16 @@
+# Python cache & virtual environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+
+# Temp downloads
+*.mp4
+*.part
+*.ytdl
+
+# OS files
+.DS_Store
+Thumbs.db

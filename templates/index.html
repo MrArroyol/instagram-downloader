@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InstaFetch — Descargador de Reels y Videos de Instagram</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+
+    <header class="navbar">
+        <div class="container nav-content">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                        <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                    </svg>
+                </div>
+                <span>Insta<span class="gradient-text">Fetch</span></span>
+            </div>
+            <div class="nav-badges">
+                <span class="badge">HD MP4</span>
+                <span class="badge">Sin Marca de Agua</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        <section class="hero">
+            <h1>Descarga <span class="gradient-text">Reels y Videos</span> de Instagram al instante</h1>
+            <p class="subtitle">Pega el enlace de cualquier Reel o publicación pública de Instagram para previsualizar y guardar el video en máxima calidad.</p>
+
+            <form id="search-form" class="search-box" autocomplete="off">
+                <div class="input-wrapper">
+                    <svg class="link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                    </svg>
+                    <input
+                        type="url"
+                        id="url-input"
+                        placeholder="https://www.instagram.com/reel/..."
+                        required
+                    >
+                    <button type="button" id="paste-btn" class="btn-secondary" title="Pegar del portapapeles">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+                            <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                        </svg>
+                        <span>Pegar</span>
+                    </button>
+                </div>
+                <button type="submit" id="submit-btn" class="btn-primary">
+                    <span class="btn-text">Obtener Video</span>
+                    <span class="spinner hidden" id="loading-spinner"></span>
+                </button>
+            </form>
+
+            <div id="status-alert" class="alert hidden" role="alert"></div>
+        </section>
+
+        <section id="results-section" class="results-section hidden">
+            <div id="results-grid" class="results-grid"></div>
+        </section>
+
+        <section class="features">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Extracción Directa</h3>
+                <p>Impulsado por <code>yt-dlp</code> para obtener el flujo de video original en la resolución más alta disponible.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎬</div>
+                <h3>Reels y Publicaciones</h3>
+                <p>Compatible con enlaces de Reels (<code>/reel/</code>), videos en publicaciones (<code>/p/</code>) y carruseles públicos.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3>Privado y Local</h3>
+                <p>Corre directamente en tu computadora sin anuncios, rastreadores ni límites de descargas.</p>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>InstaFetch Local Web App &bull; Solo para uso personal con contenido público</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
