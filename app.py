@@ -121,8 +121,20 @@ def extract_clean_username(entry: dict, info: dict, url: str = "") -> str:
     return "usuario"
 
 
+def _find_user_folder(username: str) -> Path:
+    """Busca si ya existe una carpeta para este usuario en Descargas (sin importar mayúsculas/minúsculas)."""
+    if USER_DOWNLOADS_DIR.exists():
+        try:
+            for item in USER_DOWNLOADS_DIR.iterdir():
+                if item.is_dir() and item.name.lower() == username.lower():
+                    return item
+        except Exception:
+            pass
+    return USER_DOWNLOADS_DIR / username
+
+
 def _scan_existing_max_index(username: str) -> int:
-    """Revisa en la carpeta Descargas del usuario si ya existen archivos usuario_NNN.mp4."""
+    """Revisa tanto en Descargas como dentro de Descargas/<usuario>/ si ya existen archivos usuario_NNN.mp4."""
     max_idx = 0
     if not USER_DOWNLOADS_DIR.exists():
         return 0
@@ -130,13 +142,19 @@ def _scan_existing_max_index(username: str) -> int:
         rf"^{re.escape(username)}_(\d+)(?:\s*\(\d+\))?\.mp4$",
         re.IGNORECASE,
     )
-    try:
-        for f in USER_DOWNLOADS_DIR.glob(f"{username}_*.mp4"):
-            m = pattern.match(f.name)
-            if m:
-                max_idx = max(max_idx, int(m.group(1)))
-    except Exception:
-        pass
+    search_dirs = [USER_DOWNLOADS_DIR]
+    user_folder = _find_user_folder(username)
+    if user_folder.exists() and user_folder.is_dir():
+        search_dirs.append(user_folder)
+
+    for folder in search_dirs:
+        try:
+            for f in folder.glob(f"{username}_*.mp4"):
+                m = pattern.match(f.name)
+                if m:
+                    max_idx = max(max_idx, int(m.group(1)))
+        except Exception:
+            pass
     return max_idx
 
 
@@ -426,6 +444,14 @@ def download_video():
         else:
             seq_num = claim_next_user_index(username)
             download_name = f"{username}_{seq_num:03d}.mp4"
+            # Guardar automáticamente una copia organizada en Descargas/<usuario>/<usuario>_NNN.mp4
+            try:
+                user_folder = _find_user_folder(username)
+                user_folder.mkdir(parents=True, exist_ok=True)
+                target_in_folder = user_folder / download_name
+                shutil.copy2(downloaded_path, target_in_folder)
+            except Exception:
+                pass
 
         @after_this_request
         def remove_file(response):
@@ -442,6 +468,31 @@ def download_video():
             ).start()
             return response
 
+        if not inline:
+            def cleanup_loose_browser_copy(uname: str, fname: str):
+                """Si el navegador guardó una copia suelta en Descargas, la elimina o mueve a la carpeta del usuario."""
+                for _ in range(12):
+                    time.sleep(1.5)
+                    loose_file = USER_DOWNLOADS_DIR / fname
+                    if loose_file.exists() and loose_file.is_file():
+                        user_folder = _find_user_folder(uname)
+                        user_folder.mkdir(parents=True, exist_ok=True)
+                        dest = user_folder / fname
+                        try:
+                            if dest.exists():
+                                loose_file.unlink()
+                            else:
+                                shutil.move(str(loose_file), str(dest))
+                            break
+                        except OSError:
+                            pass
+
+            threading.Thread(
+                target=cleanup_loose_browser_copy,
+                args=(username, download_name),
+                daemon=True,
+            ).start()
+
         return send_file(
             downloaded_path,
             as_attachment=not inline,
@@ -454,6 +505,82 @@ def download_video():
             jsonify(
                 {
                     "error": "Error al descargar el archivo de video.",
+                    "details": str(e),
+                }
+            ),
+            500,
+        )
+
+
+@app.route("/api/organize", methods=["POST"])
+def organize_downloads():
+    """Organiza los videos <usuario>_<NNN>.mp4 sueltos en Descargas dentro de sus respectivas carpetas <usuario>/."""
+    if not USER_DOWNLOADS_DIR.exists():
+        return jsonify({"error": "No se encontró la carpeta Descargas."}), 404
+
+    # Patrón para archivos indexados por usuario de 3 a 4 dígitos (001-9999): ej. geraldlaw575_011.mp4 o baelib0_001 (1).mp4
+    indexed_pattern = re.compile(
+        r"^([A-Za-z0-9_.-]+)_(\d{3,4})(?:\s*\(\d+\))?\.mp4$",
+        re.IGNORECASE,
+    )
+    excluded_prefixes = {
+        "tiktok",
+        "instagram",
+        "mosaicstudio",
+        "man",
+        "drone",
+        "generated",
+        "your",
+        "preview",
+    }
+
+    moved_files = []
+    folders_used = set()
+
+    try:
+        for item in list(USER_DOWNLOADS_DIR.iterdir()):
+            if not item.is_file() or item.suffix.lower() != ".mp4":
+                continue
+
+            m = indexed_pattern.match(item.name)
+            if not m:
+                continue
+
+            username = m.group(1)
+            seq_str = m.group(2)
+
+            if username.lower() in excluded_prefixes:
+                continue
+
+            user_folder = _find_user_folder(username)
+            user_folder.mkdir(parents=True, exist_ok=True)
+
+            clean_target_name = f"{user_folder.name}_{seq_str}.mp4"
+            target_path = user_folder / clean_target_name
+
+            # Si ya existe ese número dentro de la carpeta del usuario, asignar el siguiente disponible
+            if target_path.exists():
+                next_idx = claim_next_user_index(user_folder.name)
+                clean_target_name = f"{user_folder.name}_{next_idx:03d}.mp4"
+                target_path = user_folder / clean_target_name
+
+            shutil.move(str(item), str(target_path))
+            moved_files.append(f"{user_folder.name}/{clean_target_name}")
+            folders_used.add(user_folder.name)
+
+        return jsonify(
+            {
+                "success": True,
+                "moved_count": len(moved_files),
+                "folders": sorted(folders_used),
+                "files": moved_files,
+            }
+        )
+    except Exception as e:
+        return (
+            jsonify(
+                {
+                    "error": "Ocurrió un error al organizar las carpetas.",
                     "details": str(e),
                 }
             ),

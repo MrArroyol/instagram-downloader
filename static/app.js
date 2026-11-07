@@ -8,6 +8,31 @@ document.addEventListener("DOMContentLoaded", () => {
     const statusAlert = document.getElementById("status-alert");
     const resultsSection = document.getElementById("results-section");
     const resultsGrid = document.getElementById("results-grid");
+    const organizeBtn = document.getElementById("organize-btn");
+
+    if (organizeBtn) {
+        organizeBtn.addEventListener("click", async () => {
+            organizeBtn.disabled = true;
+            try {
+                const res = await fetch("/api/organize", { method: "POST" });
+                const data = await res.json();
+                if (!res.ok || data.error) {
+                    showAlert(data.error || "No se pudieron organizar los archivos.", "error");
+                } else if (data.moved_count > 0) {
+                    showAlert(
+                        `¡Listo! Se organizaron ${data.moved_count} video(s) en las carpetas: ${data.folders.join(", ")}`,
+                        "success"
+                    );
+                } else {
+                    showAlert("Todos tus videos ya están organizados en sus carpetas por usuario.", "info");
+                }
+            } catch (err) {
+                showAlert("Error al conectar con el servidor para organizar carpetas.", "error");
+            } finally {
+                organizeBtn.disabled = false;
+            }
+        });
+    }
 
     function showAlert(message, type = "error") {
         statusAlert.textContent = message;
