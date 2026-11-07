@@ -1,11 +1,13 @@
-# InstaFetch — Descargador de Videos y Reels de Instagram
+# InstaFetch — Descargador de Videos de Instagram y TikTok
 
-Aplicación web local desarrollada con **Python (Flask)** y **`yt-dlp`** para previsualizar y descargar Reels, publicaciones con video y carruseles públicos de Instagram en máxima calidad (MP4 HD) sin marcas de agua.
+Aplicación web local desarrollada con **Python (Flask)** y **`yt-dlp`** para previsualizar y descargar Reels, publicaciones de Instagram y videos de TikTok en máxima calidad (MP4 HD) sin marcas de agua.
 
 ## Características
 
-- **Extracción directa en HD:** Obtiene el flujo de video original en formato MP4.
-- **Soporte para Reels y Carruseles:** Compatible con enlaces `/reel/`, `/reels/`, `/p/` y `/tv/`.
+- **Soporte Multiplataforma (Instagram y TikTok):**
+  - **Instagram:** Reels (`/reel/`, `/reels/`), publicaciones (`/p/`), IGTV (`/tv/`) y carruseles.
+  - **TikTok:** Enlaces estándar (`tiktok.com/@usuario/video/...`) y enlaces cortos móviles (`vm.tiktok.com/...`, `vt.tiktok.com/...`).
+- **Sin marca de agua en HD:** Prioriza automáticamente los flujos de video originales sin marca de agua.
 - **Previsualización integrada:** Reproductor de video y miniatura antes de descargar.
 - **Privado y local:** Funciona directamente en tu navegador local (`http://127.0.0.1:5000`) sin anuncios ni rastreadores.
 
@@ -19,9 +21,6 @@ Aplicación web local desarrollada con **Python (Flask)** y **`yt-dlp`** para pr
 
 ## Uso rápido
 
-1. En Windows, haz doble clic en **`iniciar_instafetch.bat`**, o ejecuta en la terminal:
-   ```bash
-   py app.py
-   ```
-2. Abre `http://127.0.0.1:5000` en tu navegador.
-3. Pega el enlace del Reel o publicación pública de Instagram y haz clic en **Obtener Video**.
+1. Haz doble clic en el acceso directo **InstaFetch** en tu Escritorio (o en `iniciar_instafetch.bat`).
+2. Se abrirá `http://127.0.0.1:5000` en tu navegador.
+3. Pega el enlace de Instagram o TikTok y haz clic en **Obtener Video**.

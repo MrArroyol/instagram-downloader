@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InstaFetch — Descargador de Reels y Videos de Instagram</title>
+    <title>InstaFetch — Descargador de Videos de Instagram y TikTok</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -26,6 +26,7 @@
                 <span>Insta<span class="gradient-text">Fetch</span></span>
             </div>
             <div class="nav-badges">
+                <span class="badge">Instagram &amp; TikTok</span>
                 <span class="badge">HD MP4</span>
                 <span class="badge">Sin Marca de Agua</span>
             </div>
@@ -34,8 +35,8 @@
 
     <main class="container main-content">
         <section class="hero">
-            <h1>Descarga <span class="gradient-text">Reels y Videos</span> de Instagram al instante</h1>
-            <p class="subtitle">Pega el enlace de cualquier Reel o publicación pública de Instagram para previsualizar y guardar el video en máxima calidad.</p>
+            <h1>Descarga videos de <span class="gradient-text">Instagram y TikTok</span> al instante</h1>
+            <p class="subtitle">Pega el enlace de cualquier Reel, publicación de Instagram o video de TikTok para previsualizarlo y guardarlo en máxima calidad sin marcas de agua.</p>
 
             <form id="search-form" class="search-box" autocomplete="off">
                 <div class="input-wrapper">
@@ -46,7 +47,7 @@
                     <input
                         type="url"
                         id="url-input"
-                        placeholder="https://www.instagram.com/reel/..."
+                        placeholder="https://www.instagram.com/reel/... o https://www.tiktok.com/@usuario/video/..."
                         required
                     >
                     <button type="button" id="paste-btn" class="btn-secondary" title="Pegar del portapapeles">
@@ -73,13 +74,13 @@
         <section class="features">
             <div class="feature-card">
                 <div class="feature-icon">⚡</div>
-                <h3>Extracción Directa</h3>
-                <p>Impulsado por <code>yt-dlp</code> para obtener el flujo de video original en la resolución más alta disponible.</p>
+                <h3>Instagram &amp; TikTok</h3>
+                <p>Compatible con Reels, posts de Instagram (<code>/reel/</code>, <code>/p/</code>) y enlaces cortos o completos de TikTok (<code>tiktok.com</code>, <code>vm.tiktok.com</code>).</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🎬</div>
-                <h3>Reels y Publicaciones</h3>
-                <p>Compatible con enlaces de Reels (<code>/reel/</code>), videos en publicaciones (<code>/p/</code>) y carruseles públicos.</p>
+                <h3>Sin Marca de Agua</h3>
+                <p>Impulsado por <code>yt-dlp</code> para seleccionar automáticamente el stream original en HD libre de marcas de agua.</p>
             </div>
             <div class="feature-card">
                 <div class="feature-icon">🔒</div>
@@ -90,7 +91,7 @@
     </main>
 
     <footer class="footer">
-        <p>InstaFetch Local Web App &bull; Solo para uso personal con contenido público</p>
+        <p>InstaFetch Local Web App &bull; Descargador para Instagram y TikTok</p>
     </footer>
 
     <script src="/static/app.js"></script>

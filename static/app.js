@@ -61,6 +61,10 @@ document.addEventListener("DOMContentLoaded", () => {
             ? `<span class="media-tag">${video.resolution}</span>`
             : "";
 
+        const platformBadge = video.platform_label
+            ? `<span class="media-tag platform-${escapeHtml(video.platform || "instagram")}">${escapeHtml(video.platform_label)}</span>`
+            : "";
+
         let mediaContent = "";
         if (video.direct_url) {
             mediaContent = `
@@ -76,6 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
             <div class="video-media">
                 ${mediaContent}
                 <div class="media-badges">
+                    ${platformBadge}
                     ${resolutionBadge}
                     ${durationBadge}
                 </div>

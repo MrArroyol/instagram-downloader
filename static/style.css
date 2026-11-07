@@ -345,6 +345,16 @@ body {
     font-weight: 600;
 }
 
+.media-tag.platform-tiktok {
+    background: linear-gradient(135deg, #00f2fe 0%, #fe0979 100%);
+    color: #fff;
+}
+
+.media-tag.platform-instagram {
+    background: var(--ig-gradient);
+    color: #fff;
+}
+
 .video-body {
     padding: 20px;
     display: flex;
