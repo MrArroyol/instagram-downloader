@@ -78,6 +78,69 @@ def format_duration(seconds):
     return f"{mins}:{secs:02d}"
 
 
+def extract_clean_username(entry: dict, info: dict, url: str = "") -> str:
+    """Extrae el nombre de usuario (handle) del creador y lo limpia para usarlo en nombres de archivo."""
+    candidates = [
+        entry.get("uploader_id"),
+        entry.get("channel"),
+        entry.get("uploader"),
+        entry.get("creator"),
+        info.get("uploader_id"),
+        info.get("channel"),
+        info.get("uploader"),
+        info.get("creator"),
+    ]
+    # Intentar extraer handle de URL de TikTok si viene como @usuario
+    if url:
+        m = re.search(r"tiktok\.com/@([A-Za-z0-9_.-]+)", url, re.IGNORECASE)
+        if m:
+            candidates.insert(0, m.group(1))
+
+    for c in candidates:
+        if c and isinstance(c, str):
+            cleaned = c.strip().lstrip("@")
+            # Limpiar caracteres inválidos en nombres de archivo de Windows
+            cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", cleaned)
+            cleaned = re.sub(r"\s+", "_", cleaned).strip("._ ")
+            if cleaned and cleaned.lower() not in ("none", "unknown", "usuario_de_instagram", "usuario_de_tiktok"):
+                return cleaned[:50]
+    return "usuario"
+
+
+def pick_best_no_watermark_format(formats: list) -> dict | None:
+    """Selecciona el mejor formato MP4 con video y audio combinados evitando marcas de agua."""
+    combined_formats = [
+        f
+        for f in (formats or [])
+        if f.get("vcodec") != "none"
+        and f.get("acodec") != "none"
+        and f.get("url")
+    ]
+    if not combined_formats:
+        return None
+
+    def format_priority(f):
+        fmt_id = str(f.get("format_id") or "").lower()
+        fmt_note = str(f.get("format_note") or "").lower()
+        has_wm = (
+            "watermark" in fmt_id
+            or "watermark" in fmt_note
+            or fmt_id == "download"
+            or "wm" in fmt_id.split("_")
+        )
+        no_wm = 0 if has_wm else 1
+        is_h264 = 1 if str(f.get("vcodec") or "").startswith("avc") else 0
+        return (
+            no_wm,
+            f.get("height") or 0,
+            is_h264,
+            f.get("tbr") or 0,
+        )
+
+    combined_formats.sort(key=format_priority, reverse=True)
+    return combined_formats[0]
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -135,30 +198,8 @@ def get_video_info():
             width = entry.get("width")
             height = entry.get("height")
 
-            # Filtrar formatos que tengan video y audio combinados
-            combined_formats = [
-                f
-                for f in formats
-                if f.get("vcodec") != "none"
-                and f.get("acodec") != "none"
-                and f.get("url")
-            ]
-            if combined_formats:
-                # Para TikTok preferir formatos sin marca de agua ('download' suele tener marca, h264/bytevc1 directo no)
-                def format_priority(f):
-                    fmt_id = str(f.get("format_id") or "").lower()
-                    fmt_note = str(f.get("format_note") or "").lower()
-                    no_wm = 0 if ("watermark" in fmt_id or "watermark" in fmt_note or fmt_id == "download") else 1
-                    is_h264 = 1 if str(f.get("vcodec") or "").startswith("avc") else 0
-                    return (
-                        no_wm,
-                        f.get("height") or 0,
-                        is_h264,
-                        f.get("tbr") or 0,
-                    )
-
-                combined_formats.sort(key=format_priority, reverse=True)
-                chosen = combined_formats[0]
+            chosen = pick_best_no_watermark_format(formats)
+            if chosen:
                 best_url = chosen.get("url")
                 width = chosen.get("width") or width
                 height = chosen.get("height") or height
@@ -170,13 +211,16 @@ def get_video_info():
                 or f"{platform_label} Video {idx + 1}"
             )
             description = entry.get("description") or info.get("description") or ""
+            username = extract_clean_username(entry, info, url)
             uploader = (
-                entry.get("uploader")
-                or entry.get("creator")
-                or entry.get("uploader_id")
-                or entry.get("channel")
-                or info.get("uploader")
-                or f"Usuario de {platform_label}"
+                username
+                if username != "usuario"
+                else (
+                    entry.get("uploader")
+                    or entry.get("creator")
+                    or info.get("uploader")
+                    or f"Usuario de {platform_label}"
+                )
             )
             thumbnail = entry.get("thumbnail") or info.get("thumbnail")
             duration = format_duration(entry.get("duration") or info.get("duration"))
@@ -267,11 +311,17 @@ def download_video():
     prefix = "tt" if platform == "tiktok" else "ig"
     output_template = str(DOWNLOAD_DIR / f"{prefix}_{unique_id}_%(id)s.%(ext)s")
 
+    # Selector de formato que excluye explícitamente flujos con marca de agua ('download' o 'watermark')
+    format_selector = (
+        "best[ext=mp4][format_id!*=watermark][format_id!=download][format_note!*=watermark]/"
+        "best[ext=mp4]/best"
+    )
+
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
         "outtmpl": output_template,
-        "format": "best[ext=mp4]/best",
+        "format": format_selector,
         "playlist_items": str(item_index),
         "http_headers": {
             "User-Agent": (
@@ -298,7 +348,8 @@ def download_video():
             downloaded_path = matches[0]
 
         shortcode = entry.get("id") or unique_id
-        download_name = f"{platform}_{shortcode}.mp4"
+        username = extract_clean_username(entry, info, url)
+        download_name = f"{username}_{shortcode}.mp4"
 
         @after_this_request
         def remove_file(response):
