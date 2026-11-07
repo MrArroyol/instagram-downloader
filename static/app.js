@@ -52,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
             : "";
 
         const cleanUser = (video.uploader || "usuario").replace(/^@/, "").replace(/[^a-zA-Z0-9_.-]/g, "_");
-        const suggestedFilename = `${cleanUser}_${video.id || "video"}.mp4`;
+        const suggestedFilename = video.suggested_filename || `${cleanUser}_001.mp4`;
         const downloadEndpoint = `/api/download?url=${encodeURIComponent(video.original_url)}&index=${encodeURIComponent(video.index)}`;
 
         const durationBadge = video.duration
@@ -94,13 +94,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
                 <p class="video-desc">${escapeHtml(video.description || video.title)}</p>
                 <div class="download-actions">
-                    <a href="${downloadEndpoint}" class="btn-download" download="${escapeHtml(suggestedFilename)}">
+                    <a href="${downloadEndpoint}" class="btn-download">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                             <polyline points="7 10 12 15 17 10"></polyline>
                             <line x1="12" y1="15" x2="12" y2="3"></line>
                         </svg>
-                        <span>Descargar MP4 (${escapeHtml( suggestedFilename )})</span>
+                        <span>Guardar como ${escapeHtml(suggestedFilename)}</span>
                     </a>
                 </div>
             </div>

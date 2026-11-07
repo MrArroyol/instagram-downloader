@@ -1,5 +1,6 @@
 import os
 import re
+import json
 import uuid
 import shutil
 import tempfile
@@ -25,6 +26,11 @@ app = Flask(__name__)
 # Directorio temporal para descargas procesadas en servidor
 DOWNLOAD_DIR = Path(tempfile.gettempdir()) / "instadownloader_temp"
 DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+# Archivo local para llevar el índice consecutivo de descargas por usuario
+INDEX_FILE = Path(__file__).resolve().parent / "user_index.json"
+INDEX_LOCK = threading.Lock()
+USER_DOWNLOADS_DIR = Path.home() / "Downloads"
 
 INSTAGRAM_URL_REGEX = re.compile(
     r"^https?://(?:www\.)?instagram\.com/(?:p|reel|reels|tv|stories)/([A-Za-z0-9_-]+)",
@@ -79,32 +85,95 @@ def format_duration(seconds):
 
 
 def extract_clean_username(entry: dict, info: dict, url: str = "") -> str:
-    """Extrae el nombre de usuario (handle) del creador y lo limpia para usarlo en nombres de archivo."""
+    """Extrae el nombre de usuario (handle real, no ID numérico) y lo limpia para nombres de archivo."""
     candidates = [
-        entry.get("uploader_id"),
-        entry.get("channel"),
         entry.get("uploader"),
         entry.get("creator"),
-        info.get("uploader_id"),
-        info.get("channel"),
+        entry.get("channel"),
         info.get("uploader"),
         info.get("creator"),
+        info.get("channel"),
+        entry.get("uploader_id"),
+        info.get("uploader_id"),
     ]
-    # Intentar extraer handle de URL de TikTok si viene como @usuario
+    # Intentar extraer handle de URL de TikTok si viene como @usuario (y no es genérico @tiktok)
     if url:
         m = re.search(r"tiktok\.com/@([A-Za-z0-9_.-]+)", url, re.IGNORECASE)
-        if m:
+        if m and m.group(1).lower() != "tiktok":
             candidates.insert(0, m.group(1))
 
     for c in candidates:
         if c and isinstance(c, str):
             cleaned = c.strip().lstrip("@")
-            # Limpiar caracteres inválidos en nombres de archivo de Windows
+            # Ignorar IDs puramente numéricos largos (como uploader_id de TikTok) si hay nombres reales
+            if cleaned.isdigit() and len(cleaned) > 10:
+                continue
             cleaned = re.sub(r'[<>:"/\\|?*\x00-\x1f]+', "_", cleaned)
             cleaned = re.sub(r"\s+", "_", cleaned).strip("._ ")
-            if cleaned and cleaned.lower() not in ("none", "unknown", "usuario_de_instagram", "usuario_de_tiktok"):
+            if cleaned and cleaned.lower() not in (
+                "none",
+                "unknown",
+                "tiktok",
+                "usuario_de_instagram",
+                "usuario_de_tiktok",
+            ):
                 return cleaned[:50]
     return "usuario"
+
+
+def _scan_existing_max_index(username: str) -> int:
+    """Revisa en la carpeta Descargas del usuario si ya existen archivos usuario_NNN.mp4."""
+    max_idx = 0
+    if not USER_DOWNLOADS_DIR.exists():
+        return 0
+    pattern = re.compile(
+        rf"^{re.escape(username)}_(\d+)(?:\s*\(\d+\))?\.mp4$",
+        re.IGNORECASE,
+    )
+    try:
+        for f in USER_DOWNLOADS_DIR.glob(f"{username}_*.mp4"):
+            m = pattern.match(f.name)
+            if m:
+                max_idx = max(max_idx, int(m.group(1)))
+    except Exception:
+        pass
+    return max_idx
+
+
+def peek_next_user_index(username: str) -> int:
+    """Consulta cuál será el siguiente número consecutivo para ese usuario sin incrementarlo aún."""
+    key = username.lower()
+    with INDEX_LOCK:
+        data = {}
+        if INDEX_FILE.exists():
+            try:
+                data = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+        stored = int(data.get(key, 0))
+        disk_max = _scan_existing_max_index(username)
+        return max(stored, disk_max) + 1
+
+
+def claim_next_user_index(username: str) -> int:
+    """Incrementa y guarda el índice consecutivo para ese usuario (ej. 1 -> 001)."""
+    key = username.lower()
+    with INDEX_LOCK:
+        data = {}
+        if INDEX_FILE.exists():
+            try:
+                data = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
+            except Exception:
+                data = {}
+        stored = int(data.get(key, 0))
+        disk_max = _scan_existing_max_index(username)
+        next_idx = max(stored, disk_max) + 1
+        data[key] = next_idx
+        try:
+            INDEX_FILE.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass
+        return next_idx
 
 
 def pick_best_no_watermark_format(formats: list) -> dict | None:
@@ -225,6 +294,8 @@ def get_video_info():
             thumbnail = entry.get("thumbnail") or info.get("thumbnail")
             duration = format_duration(entry.get("duration") or info.get("duration"))
             shortcode = entry.get("id") or info.get("id") or "video"
+            next_seq = peek_next_user_index(username) + idx
+            suggested_filename = f"{username}_{next_seq:03d}.mp4"
 
             # En TikTok las URLs directas de CDN suelen requerir cookies/headers de sesión,
             # por lo que usamos nuestro endpoint de streaming/descarga para la vista previa segura
@@ -244,6 +315,7 @@ def get_video_info():
                     "description": description[:280]
                     + ("..." if len(description) > 280 else ""),
                     "uploader": uploader,
+                    "suggested_filename": suggested_filename,
                     "thumbnail": thumbnail,
                     "duration": duration,
                     "resolution": f"{width}x{height}" if width and height else "HD",
@@ -349,7 +421,11 @@ def download_video():
 
         shortcode = entry.get("id") or unique_id
         username = extract_clean_username(entry, info, url)
-        download_name = f"{username}_{shortcode}.mp4"
+        if inline:
+            download_name = f"preview_{username}_{shortcode}.mp4"
+        else:
+            seq_num = claim_next_user_index(username)
+            download_name = f"{username}_{seq_num:03d}.mp4"
 
         @after_this_request
         def remove_file(response):
